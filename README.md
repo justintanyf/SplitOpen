@@ -144,3 +144,7 @@ sequenceDiagram
 ```
 
 This allows users to manually share their expense data with others, providing a basic way to keep the data synchronized across multiple devices.
+
+### WARNINING
+
+Vibe-coded and untested
