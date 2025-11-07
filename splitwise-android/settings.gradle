@@ -1,0 +1,3 @@
+
+rootProject.name = "splitwise-free"
+include ':app'
