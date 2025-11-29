@@ -3,6 +3,7 @@ plugins {
     id 'com.android.application'
     id 'kotlin-android'
     id 'kotlin-kapt'
+    id 'com.google.dagger.hilt.android'
 }
 
 android {
@@ -21,6 +22,21 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    
+    flavorDimensions "sync"
+    productFlavors {
+        p2p {
+            dimension "sync"
+            applicationIdSuffix ".p2p"
+            versionNameSuffix "-p2p"
+        }
+        firebase {
+            dimension "sync"
+            applicationIdSuffix ".firebase"
+            versionNameSuffix "-firebase"
+        }
+    }
+    
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -34,6 +50,7 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion compose_version
     }
+    namespace 'com.example.splitwise'
 }
 
 dependencies {
@@ -56,4 +73,17 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_version"
     debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
+
+    // Hilt
+    implementation "com.google.dagger:hilt-android:2.44"
+    kapt "com.google.dagger:hilt-compiler:2.44"
+    implementation 'androidx.hilt:hilt-navigation-compose:1.0.0'
+    
+    // P2P
+    p2pImplementation 'com.google.android.gms:play-services-nearby:18.5.0'
+    
+    // Firebase
+    firebaseImplementation platform('com.google.firebase:firebase-bom:32.2.0')
+    firebaseImplementation 'com.google.firebase:firebase-database-ktx'
+    firebaseImplementation 'com.google.firebase:firebase-auth-ktx'
 }

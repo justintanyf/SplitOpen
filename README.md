@@ -1,150 +1,263 @@
-# Splitwise Free - README
+# Splitwise POC - README
 
-This document provides a comprehensive overview of the Splitwise Free Android application, including its technical design, the decisions made during its development, and detailed instructions on how to build and run the application from the command line.
-
-## Project Overview
-
-Splitwise Free is a proof-of-concept Android application that replicates the core functionality of Splitwise. It allows users to manage shared expenses within groups, track balances, and synchronize data between devices using a simple peer-to-peer mechanism.
+This is a proof-of-concept Android application that replicates core Splitwise functionality with **dual sync strategies**: Firebase for internet sync and P2P for local sync.
 
 ## Features
 
-*   **Group Management:** Create and manage groups of users.
-*   **User Management:** Add users to groups.
-*   **Expense Tracking:** Add expenses to groups, with the cost split equally among all group members.
-*   **Balance Viewing:** View the balances of who owes whom within a group.
-*   **Peer-to-Peer Synchronization:** Export and import the application's database to manually synchronize data between devices.
+- **Group Management**: Create and join expense groups
+- **Expense Tracking**: Add expenses split among group members
+- **Balance Calculation**: Automated debt calculation and settlement tracking
+- **Dual Sync Modes**:
+  - **Firebase variant**: Internet sync anywhere via Firebase Realtime Database
+  - **P2P variant**: Local sync via Nearby Connections (WiFi Direct/Bluetooth)
 
-## Technical Design and Decisions
+## Build Variants
 
-### Architecture
+This app supports **two sync modes** via Android build flavors:
 
-The application follows the **Model-View-ViewModel (MVVM)** architecture, which is the recommended architecture for modern Android applications. This architecture separates the UI from the business logic, making the application more modular, testable, and maintainable.
+| Variant | Sync Method | Requirements | Use Case |
+|---------|------------|--------------|----------|
+| **`firebase`** | Firebase Realtime Database | Firebase project + `google-services.json` | Remote teams, internet sync |
+| **`p2p`** | Nearby Connections API | Location permission | Local groups, no setup |
 
-*   **Model:** The Model consists of the data layer, which includes the Room database, DAOs (Data Access Objects), and the `SplitwiseRepository`. It is responsible for managing the application's data.
-*   **View:** The View is implemented using Jetpack Compose. It is responsible for displaying the data to the user and capturing user input.
-*   **ViewModel:** The `SplitwiseViewModel` acts as a bridge between the Model and the View. It exposes the data from the repository to the UI and contains the business logic for processing user input.
+## Architecture & Technology
 
-### Technology Stack
+**Local-First Design**:
+- Works completely offline
+- Syncs when connection is available
+- Your data stays on your device
 
-*   **Kotlin:** The application is written entirely in Kotlin, Google's recommended programming language for Android development. Kotlin's modern features, such as coroutines and null safety, help to write concise, safe, and asynchronous code.
-*   **Jetpack Compose:** The UI is built using Jetpack Compose, Android's modern toolkit for building native UI. Compose allows for a declarative approach to UI development, which makes it easier to build and maintain complex UIs.
-*   **Room Persistence Library:** Room is used for local data storage. It provides an abstraction layer over SQLite, which simplifies database access and ensures compile-time verification of SQL queries.
-*   **Kotlin Coroutines and Flow:** Asynchronous operations, such as database access, are handled using Kotlin Coroutines and Flow. This ensures that the main thread is not blocked and the UI remains responsive.
+**Tech Stack**:
+- **UI**: Jetpack Compose + Material3
+- **Database**: Room (SQLite)
+- **Sync**: Firebase (Internet) or Nearby Connections (P2P)
 
-### Database Schema
+> **For Developers**: Detailed architecture, database schema, and implementation plans are available in [splitwise_poc_plan.md](splitwise_poc_plan.md).
 
-The database schema is designed to store groups, users, expenses, and debts.
 
-```mermaid
-erDiagram
-    GROUPS ||--o{ USERS : "has"
-    GROUPS ||--o{ EXPENSES : "has"
-    USERS ||--o{ EXPENSES : "paid by"
-    EXPENSES ||--o{ DEBTS : "results in"
-    USERS ||--o{ DEBTS : "owes/owed"
-
-    GROUPS {
-        int id PK
-        string name
-    }
-    USERS {
-        int id PK
-        string name
-        int group_id FK
-    }
-    EXPENSES {
-        int id PK
-        string description
-        double amount
-        int group_id FK
-        int paid_by_user_id FK
-    }
-    DEBTS {
-        int id PK
-        int from_user_id FK
-        int to_user_id FK
-        double amount
-        int group_id FK
-    }
-```
-
-### User Interface Flow
-
-The user interface is designed to be simple and intuitive.
-
-```mermaid
-graph TD
-    A[Group List Screen] -->|Click Group| B(Group Details Screen)
-    A -->|Click '+'| C{Add Group Dialog}
-    B -->|Click 'Add User'| D{Add User Dialog}
-    B -->|Click 'Add Expense'| E{Add Expense Dialog}
-```
-
-## Building and Running the Application
-
-You can build and run the application from the command line without needing Android Studio.
+## Building and Running
 
 ### Prerequisites
 
-1.  **Java Development Kit (JDK):** You need JDK 11 or higher. To check your version, run:
+1.  **JDK 11+**
     ```bash
     java -version
     ```
-    If you don't have it, you can install it from [Oracle](https://www.oracle.com/java/technologies/javase-downloads.html) or use an open-source alternative like OpenJDK.
 
-2.  **Android SDK Command-line Tools:**
-    *   Download the tools from the [Android developer website](https://developer.android.com/studio#command-tools).
-    *   Create a directory for the SDK (e.g., `~/android-sdk`) and unzip the tools into it.
-    *   Set the `ANDROID_HOME` environment variable to this path.
-    *   Add the SDK's `platform-tools` and `cmdline-tools/latest/bin` to your system's `PATH`.
+2.  **Android SDK** (if not using Android Studio)
+    -   Download from [Android developer website](https://developer.android.com/studio#command-tools)
+    -   Set `ANDROID_HOME` environment variable
 
-### Building from the Command Line
+### Build Commands
 
-1.  **Navigate to the project directory:**
-    ```bash
-    cd /Users/tanyf/Documents/splitwise-free/splitwise-android
-    ```
-
-2.  **Make the Gradle wrapper executable (on macOS/Linux):**
-    ```bash
-    chmod +x ./gradlew
-    ```
-
-3.  **Build the debug APK:**
-    ```bash
-    ./gradlew assembleDebug
-    ```
-    On Windows, use `gradlew.bat assembleDebug`.
-
-    The generated APK will be located at `app/build/outputs/apk/debug/app-debug.apk`.
-
-### Installing the APK
-
-1.  **Connect your Android device** and ensure USB debugging is enabled.
-
-2.  **Install the APK using ADB (Android Debug Bridge):**
-    ```bash
-    adb install app/build/outputs/apk/debug/app-debug.apk
-    ```
-
-## Peer-to-Peer Synchronization
-
-The application implements a simple peer-to-peer synchronization mechanism by exporting and importing the database file.
-
-```mermaid
-sequenceDiagram
-    participant Sender
-    participant Receiver
-
-    Sender->>Sender: Click 'Export DB'
-    Sender->>Receiver: Share 'splitwise.db' file
-    Receiver->>Receiver: Click 'Import DB'
-    Receiver->>Receiver: Select 'splitwise.db' file
-    Receiver->>Receiver: App restarts with imported data
+Navigate to project directory:
+```bash
+cd /Users/tanyf/Documents/SplitOpen/splitwise-android
 ```
 
-This allows users to manually share their expense data with others, providing a basic way to keep the data synchronized across multiple devices.
+**Build P2P variant** (recommended for quick start - no Firebase setup):
+```bash
+./gradlew assembleP2pDebug
+```
+Output: `app/build/outputs/apk/p2p/debug/app-p2p-debug.apk`
 
-### WARNING
+**Build Firebase variant** (requires Firebase setup):
+```bash
+./gradlew assembleFirebaseDebug
+```
+Output: `app/build/outputs/apk/firebase/debug/app-firebase-debug.apk`
 
-Vibe-coded and untested
+### Installing
+
+Connect Android device with USB debugging enabled:
+```bash
+# Install P2P variant
+adb install app/build/outputs/apk/p2p/debug/app-p2p-debug.apk
+
+# OR install Firebase variant
+adb install app/build/outputs/apk/firebase/debug/app-firebase-debug.apk
+```
+
+## Firebase Setup (Firebase Variant Only)
+
+If building the Firebase variant:
+
+1.  Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
+2.  Add an Android app to your project
+3.  Download `google-services.json`
+4.  Place it in `app/src/firebase/google-services.json`
+5.  Enable Firebase Realtime Database in the console
+6.  Set security rules (see `implementation_plan.md`)
+
+## P2P Sync Usage
+
+**Creating a Group**:
+1.  Open app on Device A
+2.  Tap "Create Group"
+3.  App starts advertising the group
+
+**Joining a Group**:
+1.  Open app on Device B (must be nearby)
+2.  App auto-discovers nearby groups
+3.  Tap to connect
+4.  Devices exchange all events
+
+**Syncing**:
+-   Changes sync automatically when devices are connected
+-   Works without internet
+-   Range: WiFi Direct (~100m) or Bluetooth (~10m)
+-   **Topology**: `P2P_CLUSTER` (mesh) - any peer can sync with any peer
+-   **Encryption**: UKEY2 authenticated encryption (automatic)
+
+**Sync Status UI**:
+-   "Looking for nearby groups..." (Discovering)
+-   "Device 'John's Phone' requesting to join" (Authenticating)
+-   "Syncing 45/100 events..." (Progress)
+-   "All synced ✓ 2 minutes ago" (Up to date)
+
+## Firebase Sync Usage
+
+**Creating a Group**:
+1.  Open app
+2.  Tap "Create Group"
+3.  Copy group code
+
+**Joining a Group**:
+1.  Open app on another device (anywhere in the world)
+2.  Tap "Join Group"
+3.  Enter group code
+4.  Data syncs automatically via internet
+
+**Syncing**:
+-   Real-time sync over internet
+-   Works from anywhere
+-   Automatic offline queueing
+
+## Conflict Resolution
+
+### Firebase Variant
+**Strategy**: Event Sourcing + Server Timestamps (LWW)
+
+-   Events are immutable (append-only log)
+-   Firebase server timestamps determine order
+-   For conflicting edits, latest timestamp wins
+-   Soft deletes prevent data resurrection
+-   Idempotent event processing
+
+### P2P Variant
+**Strategy**: Event Sourcing + Hybrid Logical Clocks (HLC)
+
+-   **Problem**: Device clocks may be out of sync (clock skew)
+-   **Solution**: Hybrid Logical Clocks combine wall clock + logical counter
+-   Events ordered by: `(wallClock, logicalCounter, nodeId)`
+-   Ensures causal ordering even with clock skew
+-   Example:
+    ```
+    Device A (clock 5 min behind): Edit → HLC(10:00, 0, A)
+    Device B (correct clock): Edit → HLC(10:05, 0, B)
+    Resolution: B wins, but A's next edit gets HLC(10:05, 1, A)
+    ```
+
+## Advanced Features
+
+### Cross-Variant Migration
+**Export/Import groups between P2P and Firebase variants**
+
+**Why**:
+- Start with P2P (no setup) → migrate to Firebase when needed
+- Camping trip (P2P) → back to city (Firebase for remote access)
+- Event sourcing makes this trivial (export = JSON event log)
+
+**Usage**:
+```kotlin
+// Export group (P2P variant)
+val file = groupExporter.exportGroup(groupId)
+shareFile(file)  // Share via any app
+
+// Import group (Firebase variant)
+val file = selectFile()
+groupExporter.importGroup(file)
+// Group now syncs via Firebase!
+```
+
+### Event Log Snapshots (Optional)
+**Performance optimization for long-lived groups**
+
+**Problem**: Replaying 5,000 events on app launch = slow
+
+**Solution**: Snapshot group state every 100 events
+- Load latest snapshot + replay only recent events
+- 1000 events: ~2-3s → ~200ms load time
+- Snapshot strategy: Every 100 events, keep last 3 snapshots
+
+**Scope**: Optional for POC, recommended for production
+
+## Project Structure
+
+```
+app/src/
+├── main/java/com/example/splitwise/
+│   ├── data/local/          # Room database
+│   ├── data/sync/           # SyncManager interface
+│   ├── data/user/           # UserIdManager
+│   ├── data/repository/     # Repositories
+│   ├── domain/              # Use cases & models
+│   ├── ui/                  # Compose screens
+│   └── viewmodel/           # ViewModels
+├── firebase/java/...        # Firebase + server timestamps
+└── p2p/java/...             # P2P + hybrid clocks
+```
+
+## Development
+
+**Run tests**:
+```bash
+./gradlew test
+```
+
+**Build both variants**:
+```bash
+./gradlew assembleDebug
+```
+
+**Clean build**:
+```bash
+./gradlew clean build
+```
+
+## Troubleshooting
+
+**Firebase variant build fails**:
+- Ensure `google-services.json` is in `app/src/firebase/`
+- Check Firebase project configuration
+
+**P2P connection fails**:
+- Grant location permissions (required by Android for Nearby)
+- Ensure both devices have WiFi/Bluetooth enabled
+- Devices must be within range (~10-100m)
+
+**Sync not working**:
+- Check internet connection (Firebase variant)
+- Check log output with `adb logcat`
+
+## Future Enhancements
+
+- [ ] Unequal expense splits
+- [ ] Group chat
+- [ ] Settlement suggestions (minimize transactions)
+- [ ] QR code group joining for P2P
+- [ ] Export to CSV
+- [ ] Push notifications (Firebase variant)
+- [ ] Multi-currency support
+- [ ] Receipt photo attachments
+- [x] Cross-variant migration (Export/Import) - **Implemented**
+- [x] Granular sync states - **Implemented**
+- [ ] Event log snapshots (optional performance optimization)
+
+## License
+
+MIT License - Educational/POC purposes
+
+---
+
+**Note**: This is a proof-of-concept application. Not recommended for production use without additional security, testing, and error handling.
