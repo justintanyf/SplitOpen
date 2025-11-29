@@ -4,6 +4,7 @@ plugins {
     id 'kotlin-android'
     id 'kotlin-kapt'
     id 'com.google.dagger.hilt.android'
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.0.0'
 }
 
 android {
@@ -83,7 +84,7 @@ dependencies {
     p2pImplementation 'com.google.android.gms:play-services-nearby:18.5.0'
     
     // Firebase
-    firebaseImplementation platform('com.google.firebase:firebase-bom:32.2.0')
+    firebaseImplementation(platform('com.google.firebase:firebase-bom:32.2.0'))
     firebaseImplementation 'com.google.firebase:firebase-database-ktx'
     firebaseImplementation 'com.google.firebase:firebase-auth-ktx'
 }
