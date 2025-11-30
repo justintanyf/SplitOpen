@@ -1,5 +1,7 @@
 package com.example.splitwise.data.sync
 
+import android.util.Log
+
 import com.google.firebase.database.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -65,13 +67,13 @@ class FirebaseSyncManager @Inject constructor(
         }
     }
 
-    override suspend fun pushEvent(groupId: String, event: SyncEvent): Result<Unit> {
+    override suspend fun pushEvent(groupId: String, event: SyncEvent): Result<SyncEvent> {
         return try {
             _syncState.value = SyncState.Syncing(1, 1)
             val eventMap = event.toMap()
             database.getReference("groups/$groupId/events").child(event.id).setValue(eventMap).await()
             _syncState.value = SyncState.UpToDate(System.currentTimeMillis())
-            Result.success(Unit)
+            Result.success(event)
         } catch (e: Exception) {
             _syncState.value = SyncState.Error("Event push failed: ${e.message}")
             Result.failure(e)
@@ -107,9 +109,8 @@ class FirebaseSyncManager @Inject constructor(
                 _syncState.value = SyncState.Error("Sync error: ${error.message}")
             }
         }
-        // Only listen for events added from now on to avoid re-processing history
-        eventsRef.orderByChild("timestamp").startAt(System.currentTimeMillis().toDouble())
-            .addChildEventListener(listener)
+        // Listen for all events to ensure history is synced
+        eventsRef.addChildEventListener(listener)
         eventListeners[groupId] = listener
     }
     
@@ -117,18 +118,37 @@ class FirebaseSyncManager @Inject constructor(
     private fun DataSnapshot.toSyncEvent(): SyncEvent? {
         return try {
             val map = value as? Map<String, Any> ?: return null
+            
+            // Validate event type before constructing
+            val eventTypeString = map["type"] as? String
+            if (eventTypeString == null) {
+                Log.w(TAG, "Sync event missing 'type' field. Snapshot key: $key")
+                return null
+            }
+            
+            val eventType = try {
+                EventType.valueOf(eventTypeString)
+            } catch (e: IllegalArgumentException) {
+                Log.w(TAG, "Unknown event type '$eventTypeString'. Snapshot key: $key", e)
+                return null
+            }
+            
             SyncEvent(
                 id = map["id"] as String,
-                type = EventType.valueOf(map["type"] as String),
+                type = eventType,
                 userId = map["userId"] as String,
                 groupId = map["groupId"] as String,
                 data = map["data"] as Map<String, String>,
                 timestamp = map["timestamp"] as Long
             )
         } catch (e: Exception) {
-            // Log error, incompatible event structure
+            Log.e(TAG, "Failed to parse sync event. Snapshot key: $key, error: ${e.message}", e)
             null
         }
+    }
+
+    companion object {
+        private const val TAG = "FirebaseSyncManager"
     }
 
     override fun stopListening(groupId: String) {

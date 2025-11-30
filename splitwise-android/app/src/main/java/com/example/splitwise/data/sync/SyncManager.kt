@@ -35,8 +35,9 @@ interface SyncManager {
     /**
      * Push a sync event to remote.
      * Handles retry logic and queueing.
+     * Returns the event as it was pushed (e.g. with updated timestamps).
      */
-    suspend fun pushEvent(groupId: String, event: SyncEvent): Result<Unit>
+    suspend fun pushEvent(groupId: String, event: SyncEvent): Result<SyncEvent>
     
     /**
      * Start listening for events from a group.

@@ -2,10 +2,7 @@ package com.example.splitwise.data.repository
 
 import com.example.splitwise.data.local.dao.ExpenseDao
 import com.example.splitwise.data.local.dao.ExpenseSplitDao
-import com.example.splitwise.data.local.dao.ProcessedEventDao
-import com.example.splitwise.data.local.entity.ExpenseEntity
 import com.example.splitwise.data.local.entity.ExpenseSplitEntity
-import com.example.splitwise.data.local.entity.ProcessedEventEntity
 import com.example.splitwise.data.sync.EventType
 import com.example.splitwise.data.sync.SyncEvent
 import com.example.splitwise.data.sync.SyncManager
@@ -19,7 +16,6 @@ class ExpenseRepository @Inject constructor(
     private val syncManager: SyncManager,
     private val expenseDao: ExpenseDao,
     private val expenseSplitDao: ExpenseSplitDao,
-    private val processedEventDao: ProcessedEventDao,
     private val userIdManager: UserIdManager
 ) {
     fun getExpensesForGroup(groupId: String): kotlinx.coroutines.flow.Flow<List<com.example.splitwise.domain.model.Expense>> {
@@ -51,59 +47,17 @@ class ExpenseRepository @Inject constructor(
             timestamp = System.currentTimeMillis()
         )
 
-        // Process locally for immediate UI update
-        processExpenseEvent(event)
-
+        // Process locally for immediate UI update is now handled by SyncEventProcessor
+        
         // Push event to sync
-        syncManager.pushEvent(groupId, event)
+        val pushResult = syncManager.pushEvent(groupId, event)
+        if (pushResult.isFailure) {
+            return Result.failure(pushResult.exceptionOrNull() ?: Exception("Failed to push expense event"))
+        }
 
         return Result.success(expenseId)
     }
 
-    suspend fun processExpenseEvent(event: SyncEvent) {
-        if (processedEventDao.hasProcessed(event.id)) return
-
-        when (event.type) {
-            EventType.EXPENSE_ADD -> {
-                val expenseId = event.data["expenseId"] ?: return
-                val description = event.data["description"] ?: ""
-                val amount = event.data["amount"]?.toDoubleOrNull() ?: 0.0
-                val paidBy = event.data["paidBy"] ?: return
-                val splitWith = event.data["splitWith"]?.split(",") ?: return
-
-                if (splitWith.isEmpty()) return
-
-                val expense = ExpenseEntity(
-                    id = expenseId,
-                    groupId = event.groupId,
-                    description = description,
-                    amount = amount,
-                    paidBy = paidBy,
-                    createdAt = event.timestamp,
-                    createdBy = event.userId,
-                    lastModifiedAt = event.timestamp,
-                    lastModifiedBy = event.userId
-                )
-                expenseDao.insert(expense)
-
-                val shareAmount = amount / splitWith.size
-                val splits = splitWith.map { userId ->
-                    ExpenseSplitEntity(
-                        id = UUID.randomUUID().toString(),
-                        expenseId = expenseId,
-                        userId = userId,
-                        shareAmount = shareAmount,
-                        isPayer = userId == paidBy
-                    )
-                }
-                expenseSplitDao.insertAll(splits)
-            }
-            // TODO: Handle EXPENSE_EDIT, EXPENSE_DELETE
-            else -> {}
-        }
-
-        processedEventDao.markAsProcessed(ProcessedEventEntity(eventId = event.id, groupId = event.groupId))
-    }
 }
 
 private fun com.example.splitwise.data.local.entity.ExpenseWithSplits.toDomainModel(): com.example.splitwise.domain.model.Expense {

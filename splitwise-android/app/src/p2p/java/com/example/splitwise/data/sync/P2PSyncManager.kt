@@ -132,7 +132,7 @@ class P2PSyncManager @Inject constructor(
         }
     }
 
-    override suspend fun pushEvent(groupId: String, event: SyncEvent): Result<Unit> {
+    override suspend fun pushEvent(groupId: String, event: SyncEvent): Result<SyncEvent> {
         return try {
             val timestamp = hybridClockManager.generateTimestamp()
             val eventWithTimestamp = event.copy(
@@ -148,7 +148,7 @@ class P2PSyncManager @Inject constructor(
             connectedEndpoints.forEach { endpointId ->
                 connectionsClient.sendPayload(endpointId, payload)
             }
-            Result.success(Unit)
+            Result.success(eventWithTimestamp)
         } catch (e: Exception) {
             Result.failure(e)
         }
